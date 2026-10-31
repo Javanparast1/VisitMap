@@ -16,10 +16,10 @@ The initial screen is a Persian, right-to-left Compose screen. Customer records,
 - JDK: 17
 - Compile SDK: 36
 - Minimum SDK: 26
-- Jetpack Compose BOM: 2026.07.00
+- Jetpack Compose BOM: 2026.06.01
 - Activity Compose: 1.13.0
 
-Compose BOM 2026.07.00 is pinned to the Compose 1.11.4 generation, which predates the API 37 requirement introduced in Compose 1.12. The first CI attempt exposed an obsolete Kotlin compiler configuration; the project now uses the typed `compilerOptions` DSL. The baseline remains subject to successful CI and device validation.
+Compose BOM 2026.06.01 is pinned to the Compose 1.11.4 generation, which predates the API 37 requirement introduced in Compose 1.12. The first CI attempt exposed an obsolete Kotlin compiler configuration; the project now uses the typed `compilerOptions` DSL. The baseline remains subject to successful CI and device validation.
 
 Versions are centralized in `gradle/libs.versions.toml`.
 
