@@ -112,6 +112,39 @@ interface VisitMapDao {
     }
 
     /**
+     * Replaces a pending GPS/network proposal with a new manual-map proposal.
+     * The original observation is retained as REJECTED; the manual proposal
+     * remains PENDING until the user explicitly accepts it.
+     */
+    @Transaction
+    suspend fun recordManualCorrection(
+        sourceObservationId: String,
+        manualProposal: LocationObservationEntity,
+        rejectedAt: Long
+    ): Int {
+        val source = getLocationObservation(sourceObservationId) ?: return 0
+        if (
+            source.reviewStatus != LocationObservationEntity.REVIEW_PENDING ||
+            source.reviewedAt != null
+        ) {
+            return 0
+        }
+
+        require(sourceObservationId != manualProposal.observationId)
+        require(source.customerId == manualProposal.customerId)
+        require(manualProposal.reviewStatus == LocationObservationEntity.REVIEW_PENDING)
+        require(manualProposal.reviewedAt == null)
+        require(manualProposal.isManual)
+        require(manualProposal.provider == CustomerLocationEntity.PROVIDER_MANUAL)
+
+        val rejected = markObservationRejected(sourceObservationId, rejectedAt)
+        if (rejected != 1) return 0
+
+        insertLocationObservation(manualProposal)
+        return 1
+    }
+
+    /**
      * Accepts an already-persisted proposal and promotes it to the current location.
      * The first accepted location has no history row; replacements must append history.
      */
