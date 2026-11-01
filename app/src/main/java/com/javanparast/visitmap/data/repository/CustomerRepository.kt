@@ -32,7 +32,7 @@ class CustomerRepository(
         initialObservation: LocationObservationEntity
     ) = dao.registerCustomer(customer, initialObservation)
 
-    suspend fun updateCustomer(customer: CustomerEntity) =
+    suspend fun updateCustomer(customer: CustomerEntity): Int =
         dao.updateCustomer(customer)
 
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity> =
