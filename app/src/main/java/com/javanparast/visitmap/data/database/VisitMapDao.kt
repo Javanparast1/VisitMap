@@ -130,6 +130,8 @@ interface VisitMapDao {
             return 0
         }
 
+        require(!source.isManual)
+        require(source.provider != CustomerLocationEntity.PROVIDER_MANUAL)
         require(sourceObservationId != manualProposal.observationId)
         require(source.customerId == manualProposal.customerId)
         require(manualProposal.reviewStatus == LocationObservationEntity.REVIEW_PENDING)
