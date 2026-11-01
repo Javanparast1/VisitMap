@@ -51,7 +51,7 @@ interface VisitMapDao {
     suspend fun insertCustomer(customer: CustomerEntity)
 
     @Update
-    suspend fun updateCustomer(customer: CustomerEntity)
+    suspend fun updateCustomer(customer: CustomerEntity): Int
 
     @Upsert
     suspend fun upsertCurrentLocation(location: CustomerLocationEntity)
