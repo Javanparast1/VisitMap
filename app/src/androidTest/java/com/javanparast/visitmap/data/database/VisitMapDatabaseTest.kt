@@ -94,6 +94,55 @@ class VisitMapDatabaseTest {
     }
 
     @Test
+    fun manualCorrectionRetainsGpsProposalAndRequiresItsOwnAcceptance() = runBlocking {
+        val customer = sampleCustomer()
+        val gpsLocation = sampleLocation(customer.customerId)
+        val gpsProposal = sampleObservation(customer.customerId, gpsLocation)
+        dao.registerCustomer(customer, gpsProposal)
+
+        val manualLocation = gpsLocation.copy(
+            latitude = 37.25,
+            longitude = 49.65,
+            accuracyMeters = null,
+            provider = CustomerLocationEntity.PROVIDER_MANUAL,
+            capturedAt = 2_000L,
+            isManual = true
+        )
+        val manualProposal = sampleObservation(customer.customerId, manualLocation).copy(
+            observationId = "manual-observation-1"
+        )
+
+        assertEquals(
+            1,
+            dao.recordManualCorrection(
+                sourceObservationId = gpsProposal.observationId,
+                manualProposal = manualProposal,
+                rejectedAt = 1_800L
+            )
+        )
+
+        assertNull(dao.getCurrentLocation(customer.customerId))
+        assertEquals(
+            LocationObservationEntity.REVIEW_REJECTED,
+            dao.getLocationObservation(gpsProposal.observationId)?.reviewStatus
+        )
+        assertEquals(
+            LocationObservationEntity.REVIEW_PENDING,
+            dao.getLocationObservation(manualProposal.observationId)?.reviewStatus
+        )
+
+        assertEquals(
+            1,
+            dao.acceptLocationObservation(
+                manualProposal.observationId,
+                2_500L,
+                manualLocation
+            )
+        )
+        assertEquals(manualLocation, dao.getCurrentLocation(customer.customerId))
+    }
+
+    @Test
     fun pendingReplacementDoesNotChangeCurrentLocationUntilAccepted() = runBlocking {
         val customer = sampleCustomer()
         val oldLocation = sampleLocation(customer.customerId)
