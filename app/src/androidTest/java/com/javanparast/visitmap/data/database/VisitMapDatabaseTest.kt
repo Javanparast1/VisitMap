@@ -143,6 +143,82 @@ class VisitMapDatabaseTest {
     }
 
     @Test
+    fun manualCorrectionCannotUseAnotherManualProposalAsItsSource() = runBlocking {
+        val customer = sampleCustomer()
+        val manualLocation = sampleLocation(customer.customerId).copy(
+            provider = CustomerLocationEntity.PROVIDER_MANUAL,
+            isManual = true
+        )
+        val source = sampleObservation(customer.customerId, manualLocation)
+        dao.registerCustomer(customer, source)
+
+        val anotherManualProposal = sampleObservation(customer.customerId, manualLocation).copy(
+            observationId = "manual-observation-2",
+            capturedAt = 2_000L
+        )
+
+        var rejected = false
+        try {
+            dao.recordManualCorrection(
+                sourceObservationId = source.observationId,
+                manualProposal = anotherManualProposal,
+                rejectedAt = 2_100L
+            )
+        } catch (_: IllegalArgumentException) {
+            rejected = true
+        }
+
+        assertEquals(true, rejected)
+        assertEquals(
+            LocationObservationEntity.REVIEW_PENDING,
+            dao.getLocationObservation(source.observationId)?.reviewStatus
+        )
+        assertNull(dao.getLocationObservation(anotherManualProposal.observationId))
+    }
+
+    @Test
+    fun invalidReplacementHistoryRollsBackAcceptanceAndLocationUpdate() = runBlocking {
+        val customer = sampleCustomer()
+        val oldLocation = sampleLocation(customer.customerId)
+        val firstProposal = sampleObservation(customer.customerId, oldLocation)
+        dao.registerCustomer(customer, firstProposal)
+        dao.acceptLocationObservation(firstProposal.observationId, 1_500L, oldLocation)
+
+        val newLocation = oldLocation.copy(
+            latitude = 37.2,
+            longitude = 49.6,
+            capturedAt = 2_000L
+        )
+        val secondProposal = sampleObservation(customer.customerId, newLocation).copy(
+            observationId = "observation-rollback"
+        )
+        dao.recordLocationObservation(secondProposal)
+        val invalidHistory = sampleHistory(customer.customerId, oldLocation, newLocation).copy(
+            oldLatitude = 0.0
+        )
+
+        var rejected = false
+        try {
+            dao.acceptLocationObservation(
+                secondProposal.observationId,
+                2_500L,
+                newLocation,
+                invalidHistory
+            )
+        } catch (_: IllegalArgumentException) {
+            rejected = true
+        }
+
+        assertEquals(true, rejected)
+        assertEquals(oldLocation, dao.getCurrentLocation(customer.customerId))
+        assertEquals(
+            LocationObservationEntity.REVIEW_PENDING,
+            dao.getLocationObservation(secondProposal.observationId)?.reviewStatus
+        )
+        assertEquals(emptyList<LocationHistoryEntity>(), dao.getLocationHistory(customer.customerId))
+    }
+
+    @Test
     fun pendingReplacementDoesNotChangeCurrentLocationUntilAccepted() = runBlocking {
         val customer = sampleCustomer()
         val oldLocation = sampleLocation(customer.customerId)
