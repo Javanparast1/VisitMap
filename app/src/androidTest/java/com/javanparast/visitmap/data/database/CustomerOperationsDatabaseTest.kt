@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.javanparast.visitmap.data.model.CustomerEntity
+import com.javanparast.visitmap.data.model.LocationObservationEntity
 import com.javanparast.visitmap.data.repository.CustomerRepository
 import com.javanparast.visitmap.domain.CustomerInput
 import com.javanparast.visitmap.ui.CustomerViewModel
@@ -73,8 +74,30 @@ class CustomerOperationsDatabaseTest {
         withTimeout(5_000L) {
             viewModel.state.filter { !it.isBusy && it.saveCompleted }.first()
         }
+        // A later tap after the first operation has completed must also be ignored.
+        viewModel.save(input)
+        viewModel.save(input)
         assertEquals(1, dao.observeCustomers().first().size)
         assertEquals("فروشگاه یکتا", dao.observeCustomers().first().single().name)
+    }
+
+    @Test
+    fun permanentDeleteRemovesCustomerAndDependentLocationRecordsAtomically() = runBlocking {
+        val customer = sampleCustomer()
+        val observation = LocationObservationEntity(
+            customerId = customer.customerId,
+            latitude = 37.0,
+            longitude = 49.0,
+            provider = "GNSS",
+            capturedAt = 2_000L,
+            isManual = false
+        )
+        dao.registerCustomer(customer, observation)
+
+        assertEquals(1, dao.deleteCustomerPermanently(customer.customerId))
+        assertNull(dao.getCustomer(customer.customerId))
+        assertEquals(emptyList<LocationObservationEntity>(), dao.getLocationObservations(customer.customerId))
+        assertEquals(0, dao.deleteCustomerPermanently(customer.customerId))
     }
 
     @Test
