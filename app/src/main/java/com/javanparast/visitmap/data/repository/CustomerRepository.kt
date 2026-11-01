@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Local persistence boundary for customer records.
  *
- * Domain validation and location-quality decisions belong in the domain layer,
- * not in this storage adapter.
+ * Location proposals are persisted separately from approved current locations.
+ * A proposal becomes current only through explicit acceptance.
  */
 class CustomerRepository(
     private val dao: VisitMapDao
@@ -29,18 +29,11 @@ class CustomerRepository(
 
     suspend fun registerCustomer(
         customer: CustomerEntity,
-        location: CustomerLocationEntity,
-        observation: LocationObservationEntity
-    ) = dao.registerCustomer(customer, location, observation)
+        initialObservation: LocationObservationEntity
+    ) = dao.registerCustomer(customer, initialObservation)
 
     suspend fun updateCustomer(customer: CustomerEntity) =
         dao.updateCustomer(customer)
-
-    suspend fun updateCurrentLocation(
-        location: CustomerLocationEntity,
-        observation: LocationObservationEntity,
-        history: LocationHistoryEntity
-    ) = dao.updateCurrentLocation(location, observation, history)
 
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity> =
         dao.getLocationObservations(customerId)
@@ -49,11 +42,22 @@ class CustomerRepository(
         observation: LocationObservationEntity
     ) = dao.recordLocationObservation(observation)
 
-    suspend fun updateObservationReview(
+    suspend fun acceptLocationObservation(
         observationId: String,
-        reviewStatus: String,
-        reviewedAt: Long?
-    ): Int = dao.updateObservationReview(observationId, reviewStatus, reviewedAt)
+        reviewedAt: Long,
+        acceptedLocation: CustomerLocationEntity,
+        history: LocationHistoryEntity? = null
+    ): Int = dao.acceptLocationObservation(
+        observationId = observationId,
+        reviewedAt = reviewedAt,
+        acceptedLocation = acceptedLocation,
+        history = history
+    )
+
+    suspend fun rejectLocationObservation(
+        observationId: String,
+        reviewedAt: Long
+    ): Int = dao.rejectLocationObservation(observationId, reviewedAt)
 
     fun observeLocationHistory(customerId: String): Flow<List<LocationHistoryEntity>> =
         dao.observeLocationHistory(customerId)
