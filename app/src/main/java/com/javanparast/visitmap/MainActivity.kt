@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +71,12 @@ private enum class Screen { LIST, FORM, DETAIL }
 private fun VisitMapApp(viewModel: CustomerViewModel) {
     val state by viewModel.state.collectAsState()
     var screen by remember { mutableStateOf(Screen.LIST) }
+    LaunchedEffect(state.saveCompleted) {
+        if (state.saveCompleted) {
+            viewModel.consumeSaveCompleted()
+            screen = Screen.DETAIL
+        }
+    }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -90,7 +97,7 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
                             onBack = { viewModel.clearMessage(); screen = if (state.selectedCustomer == null) Screen.LIST else Screen.DETAIL },
                             onSave = {
                                 viewModel.save(it)
-                                // The form remains visible until the user chooses to return.
+                                // Successful saves navigate to the saved customer's detail screen.
                             }
                         )
                         Screen.DETAIL -> state.selectedCustomer?.let { customer ->
@@ -184,7 +191,7 @@ private fun CustomerForm(
             enabled = !busy,
             onClick = { onSave(CustomerInput(name, type, phone, contact, description)) }
         ) { Text(if (busy) "در حال ذخیره…" else "ذخیره") }
-        OutlinedButton(onClick = onBack) { Text("بازگشت") }
+        OutlinedButton(enabled = !busy, onClick = onBack) { Text("بازگشت") }
     }
 }
 
