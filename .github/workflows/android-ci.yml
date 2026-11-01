@@ -37,8 +37,10 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      - name: Run unit tests, Android lint, and build debug APK
-        run: gradle --no-daemon test lint assembleDebug
+      # Room exports one schema location. Build only the debug variant here
+      # to avoid concurrent debug/release KSP tasks writing the same schema.
+      - name: Run debug unit tests, lint, and build debug APK
+        run: gradle --no-daemon --no-parallel testDebugUnitTest lintDebug assembleDebug
 
       - name: Run Room instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -47,7 +49,7 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: gradle --no-daemon connectedDebugAndroidTest
+          script: gradle --no-daemon --no-parallel connectedDebugAndroidTest
 
       - name: Upload debug APK and Room schema
         uses: actions/upload-artifact@v4
