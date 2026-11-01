@@ -111,7 +111,7 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
                                 busy = state.isBusy,
                                 onDelete = viewModel::deletePermanently,
                                 onBack = { viewModel.select(null); screen = Screen.LIST },
-                                onEdit = { viewModel.clearMessage(); screen = Screen.FORM },
+                                onEdit = { viewModel.select(customer); screen = Screen.FORM },
                                 onToggleActive = { viewModel.setActive(it) }
                             )
                         } ?: run { screen = Screen.LIST }
