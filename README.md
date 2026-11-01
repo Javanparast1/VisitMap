@@ -10,6 +10,7 @@ Offline-first Android app for recording and managing physical shops.
 - Customer list and unified search by shop name, contact name, or phone.
 - Customer detail and editing while preserving the customer ID.
 - Deactivation/reactivation without physically deleting customer data.
+- Permanent customer deletion after an explicit confirmation; dependent location records are removed transactionally.
 - Domain validation for required shop name and supported shop types.
 - Location proposals remain separate from the approved current location and require explicit acceptance.
 
