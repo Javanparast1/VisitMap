@@ -11,6 +11,7 @@ import com.javanparast.visitmap.data.model.LocationObservationEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,27 +37,69 @@ class VisitMapDatabaseTest {
     }
 
     @Test
-    fun registrationPersistsCustomerCurrentLocationAndObservation() = runBlocking {
+    fun registrationPersistsCustomerAndPendingProposalWithoutCurrentLocation() = runBlocking {
         val customer = sampleCustomer()
-        val location = sampleLocation(customer.customerId)
-        val observation = sampleObservation(customer.customerId, location)
+        val proposal = sampleObservation(customer.customerId, sampleLocation(customer.customerId))
 
-        dao.registerCustomer(customer, location, observation)
+        dao.registerCustomer(customer, proposal)
 
         assertEquals(customer, dao.getCustomer(customer.customerId))
-        assertEquals(location, dao.getCurrentLocation(customer.customerId))
+        assertNull(dao.getCurrentLocation(customer.customerId))
         assertEquals(
-            listOf(observation),
+            listOf(proposal),
             dao.getLocationObservations(customer.customerId)
         )
+        assertEquals(LocationObservationEntity.REVIEW_PENDING, proposal.reviewStatus)
+        assertNull(proposal.reviewedAt)
     }
 
     @Test
-    fun locationUpdateKeepsObservationAndHistoryAndReplacesCurrentLocation() = runBlocking {
+    fun acceptingFirstProposalCreatesCurrentLocationWithoutHistory() = runBlocking {
+        val customer = sampleCustomer()
+        val location = sampleLocation(customer.customerId)
+        val proposal = sampleObservation(customer.customerId, location)
+        dao.registerCustomer(customer, proposal)
+
+        val accepted = dao.acceptLocationObservation(
+            observationId = proposal.observationId,
+            reviewedAt = 1_500L,
+            acceptedLocation = location
+        )
+
+        assertEquals(1, accepted)
+        assertEquals(location, dao.getCurrentLocation(customer.customerId))
+        assertEquals(emptyList<LocationHistoryEntity>(), dao.getLocationHistory(customer.customerId))
+        val storedProposal = dao.getLocationObservation(proposal.observationId)
+        assertEquals(LocationObservationEntity.REVIEW_ACCEPTED, storedProposal?.reviewStatus)
+        assertEquals(1_500L, storedProposal?.reviewedAt)
+    }
+
+    @Test
+    fun rejectingFirstProposalLeavesCustomerWithoutCurrentLocation() = runBlocking {
+        val customer = sampleCustomer()
+        val proposal = sampleObservation(customer.customerId, sampleLocation(customer.customerId))
+        dao.registerCustomer(customer, proposal)
+
+        assertEquals(1, dao.rejectLocationObservation(proposal.observationId, 1_600L))
+
+        assertNull(dao.getCurrentLocation(customer.customerId))
+        val storedProposal = dao.getLocationObservation(proposal.observationId)
+        assertEquals(LocationObservationEntity.REVIEW_REJECTED, storedProposal?.reviewStatus)
+        assertEquals(1_600L, storedProposal?.reviewedAt)
+        assertEquals(0, dao.acceptLocationObservation(
+            proposal.observationId,
+            1_700L,
+            sampleLocation(customer.customerId)
+        ))
+    }
+
+    @Test
+    fun pendingReplacementDoesNotChangeCurrentLocationUntilAccepted() = runBlocking {
         val customer = sampleCustomer()
         val oldLocation = sampleLocation(customer.customerId)
-        val firstObservation = sampleObservation(customer.customerId, oldLocation)
-        dao.registerCustomer(customer, oldLocation, firstObservation)
+        val firstProposal = sampleObservation(customer.customerId, oldLocation)
+        dao.registerCustomer(customer, firstProposal)
+        dao.acceptLocationObservation(firstProposal.observationId, 1_500L, oldLocation)
 
         val newLocation = oldLocation.copy(
             latitude = 37.2,
@@ -65,33 +108,61 @@ class VisitMapDatabaseTest {
             provider = CustomerLocationEntity.PROVIDER_GNSS,
             capturedAt = 2_000L
         )
-        val secondObservation = sampleObservation(customer.customerId, newLocation).copy(
+        val secondProposal = sampleObservation(customer.customerId, newLocation).copy(
             observationId = "observation-2"
         )
-        val history = LocationHistoryEntity(
-            historyId = "history-1",
-            customerId = customer.customerId,
-            oldLatitude = oldLocation.latitude,
-            oldLongitude = oldLocation.longitude,
-            newLatitude = newLocation.latitude,
-            newLongitude = newLocation.longitude,
-            oldAccuracyMeters = oldLocation.accuracyMeters,
-            newAccuracyMeters = newLocation.accuracyMeters,
-            oldProvider = oldLocation.provider,
-            newProvider = newLocation.provider,
-            oldCapturedAt = oldLocation.capturedAt,
-            newCapturedAt = newLocation.capturedAt,
-            oldIsManual = oldLocation.isManual,
-            newIsManual = newLocation.isManual,
-            changedAt = 3_000L,
-            reason = "test"
+        dao.recordLocationObservation(secondProposal)
+
+        assertEquals(oldLocation, dao.getCurrentLocation(customer.customerId))
+        assertEquals(LocationObservationEntity.REVIEW_PENDING,
+            dao.getLocationObservation(secondProposal.observationId)?.reviewStatus)
+
+        val history = sampleHistory(customer.customerId, oldLocation, newLocation)
+        assertEquals(
+            1,
+            dao.acceptLocationObservation(
+                secondProposal.observationId,
+                2_500L,
+                newLocation,
+                history
+            )
         )
 
-        dao.updateCurrentLocation(newLocation, secondObservation, history)
-
         assertEquals(newLocation, dao.getCurrentLocation(customer.customerId))
-        assertEquals(2, dao.getLocationObservations(customer.customerId).size)
         assertEquals(listOf(history), dao.getLocationHistory(customer.customerId))
+        assertEquals(2, dao.getLocationObservations(customer.customerId).size)
+        assertEquals(
+            LocationObservationEntity.REVIEW_ACCEPTED,
+            dao.getLocationObservation(secondProposal.observationId)?.reviewStatus
+        )
+    }
+
+    @Test
+    fun rejectingReplacementPreservesCurrentLocationAndDoesNotCreateHistory() = runBlocking {
+        val customer = sampleCustomer()
+        val oldLocation = sampleLocation(customer.customerId)
+        val firstProposal = sampleObservation(customer.customerId, oldLocation)
+        dao.registerCustomer(customer, firstProposal)
+        dao.acceptLocationObservation(firstProposal.observationId, 1_500L, oldLocation)
+
+        val newLocation = oldLocation.copy(
+            latitude = 37.2,
+            longitude = 49.6,
+            capturedAt = 2_000L
+        )
+        val secondProposal = sampleObservation(customer.customerId, newLocation).copy(
+            observationId = "observation-2"
+        )
+        dao.recordLocationObservation(secondProposal)
+
+        assertEquals(1, dao.rejectLocationObservation(secondProposal.observationId, 2_500L))
+
+        assertEquals(oldLocation, dao.getCurrentLocation(customer.customerId))
+        assertEquals(emptyList<LocationHistoryEntity>(), dao.getLocationHistory(customer.customerId))
+        assertEquals(
+            LocationObservationEntity.REVIEW_REJECTED,
+            dao.getLocationObservation(secondProposal.observationId)?.reviewStatus
+        )
     }
 
     private fun sampleCustomer() = CustomerEntity(
@@ -124,8 +195,29 @@ class VisitMapDatabaseTest {
         accuracyMeters = location.accuracyMeters,
         provider = location.provider,
         capturedAt = location.capturedAt,
-        isManual = location.isManual,
-        reviewStatus = LocationObservationEntity.REVIEW_ACCEPTED,
-        reviewedAt = 1_500L
+        isManual = location.isManual
+    )
+
+    private fun sampleHistory(
+        customerId: String,
+        oldLocation: CustomerLocationEntity,
+        newLocation: CustomerLocationEntity
+    ) = LocationHistoryEntity(
+        historyId = "history-1",
+        customerId = customerId,
+        oldLatitude = oldLocation.latitude,
+        oldLongitude = oldLocation.longitude,
+        newLatitude = newLocation.latitude,
+        newLongitude = newLocation.longitude,
+        oldAccuracyMeters = oldLocation.accuracyMeters,
+        newAccuracyMeters = newLocation.accuracyMeters,
+        oldProvider = oldLocation.provider,
+        newProvider = newLocation.provider,
+        oldCapturedAt = oldLocation.capturedAt,
+        newCapturedAt = newLocation.capturedAt,
+        oldIsManual = oldLocation.isManual,
+        newIsManual = newLocation.isManual,
+        changedAt = 3_000L,
+        reason = "test"
     )
 }
