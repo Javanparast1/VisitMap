@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -72,9 +73,12 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
     val state by viewModel.state.collectAsState()
     var screen by remember { mutableStateOf(Screen.LIST) }
     LaunchedEffect(state.saveCompleted) {
-        if (state.saveCompleted) {
-            viewModel.consumeSaveCompleted()
-            screen = Screen.DETAIL
+        if (state.saveCompleted) screen = Screen.DETAIL
+    }
+    LaunchedEffect(state.deleteCompleted) {
+        if (state.deleteCompleted) {
+            viewModel.select(null)
+            screen = Screen.LIST
         }
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -104,6 +108,8 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
                             CustomerDetail(
                                 customer = customer,
                                 message = state.message,
+                                busy = state.isBusy,
+                                onDelete = viewModel::deletePermanently,
                                 onBack = { viewModel.select(null); screen = Screen.LIST },
                                 onEdit = { viewModel.clearMessage(); screen = Screen.FORM },
                                 onToggleActive = { viewModel.setActive(it) }
@@ -199,10 +205,24 @@ private fun CustomerForm(
 private fun CustomerDetail(
     customer: CustomerEntity,
     message: String?,
+    busy: Boolean,
+    onDelete: () -> Unit,
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onToggleActive: (Boolean) -> Unit
-) {
+){
+    var confirmDelete by remember(customer.customerId) { mutableStateOf(false) }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { if (!busy) confirmDelete = false },
+            title = { Text("حذف دائمی فروشگاه") },
+            text = { Text("این کار اطلاعات فروشگاه و تمام سوابق مکانی آن را برای همیشه از گوشی پاک می‌کند و قابل بازگردانی نیست. ادامه می‌دهید؟") },
+            confirmButton = {
+                Button(enabled = !busy, onClick = onDelete) { Text(if (busy) "در حال حذف…" else "حذف دائمی") }
+            },
+            dismissButton = { OutlinedButton(enabled = !busy, onClick = { confirmDelete = false }) { Text("انصراف") } }
+        )
+    }
     Text(customer.name, style = MaterialTheme.typography.headlineSmall)
     Spacer(Modifier.height(8.dp))
     Text("نوع فعالیت: ${customerTypeLabel(customer.customerType)}")
@@ -212,12 +232,14 @@ private fun CustomerDetail(
     Text("توضیحات: ${customer.description ?: "ثبت نشده"}")
     Spacer(Modifier.height(12.dp))
     message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-    Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("ویرایش اطلاعات") }
+    Button(enabled = !busy, onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("ویرایش اطلاعات") }
     OutlinedButton(
+        enabled = !busy,
         onClick = { onToggleActive(customer.status != CustomerEntity.STATUS_ACTIVE) },
         modifier = Modifier.fillMaxWidth()
     ) { Text(if (customer.status == CustomerEntity.STATUS_ACTIVE) "غیرفعال‌سازی (بدون حذف اطلاعات)" else "فعال‌سازی مجدد") }
-    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("بازگشت به فهرست") }
+    OutlinedButton(enabled = !busy, onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("بازگشت به فهرست") }
+    OutlinedButton(enabled = !busy, onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("حذف دائمی فروشگاه") }
 }
 
 private fun customerTypeLabel(type: String): String = when (type) {
