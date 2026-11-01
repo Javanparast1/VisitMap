@@ -19,7 +19,8 @@ data class CustomerUiState(
     val query: String = "",
     val selectedCustomer: CustomerEntity? = null,
     val message: String? = null,
-    val isBusy: Boolean = false
+    val isBusy: Boolean = false,
+    val saveCompleted: Boolean = false
 )
 
 class CustomerViewModel(private val repository: CustomerRepository) : ViewModel() {
@@ -42,7 +43,11 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
     }
 
     fun select(customer: CustomerEntity?) {
-        _state.update { it.copy(selectedCustomer = customer, message = null) }
+        _state.update { it.copy(selectedCustomer = customer, message = null, saveCompleted = false) }
+    }
+
+    fun consumeSaveCompleted() {
+        _state.update { it.copy(saveCompleted = false) }
     }
 
     fun save(input: CustomerInput) {
@@ -52,24 +57,41 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
             return
         }
         val valid = (validation as CustomerValidationResult.Valid).input
+
+        // Acquire the save gate synchronously, before launching a coroutine. This
+        // prevents rapid repeated taps from scheduling multiple inserts/updates.
+        while (true) {
+            val current = _state.value
+            if (current.isBusy) return
+            if (_state.compareAndSet(
+                    current,
+                    current.copy(isBusy = true, message = null, saveCompleted = false)
+                )
+            ) break
+        }
+
         viewModelScope.launch {
-            _state.update { it.copy(isBusy = true, message = null) }
             try {
                 val now = System.currentTimeMillis()
                 val selected = _state.value.selectedCustomer
                 if (selected == null) {
-                    repository.registerCustomer(
-                        CustomerEntity(
-                            name = valid.name,
-                            customerType = valid.customerType,
-                            phone = valid.phone,
-                            contactName = valid.contactName,
-                            description = valid.description,
-                            createdAt = now,
-                            updatedAt = now
-                        )
+                    val customer = CustomerEntity(
+                        name = valid.name,
+                        customerType = valid.customerType,
+                        phone = valid.phone,
+                        contactName = valid.contactName,
+                        description = valid.description,
+                        createdAt = now,
+                        updatedAt = now
                     )
-                    _state.update { it.copy(message = "فروشگاه ثبت شد.") }
+                    repository.registerCustomer(customer)
+                    _state.update {
+                        it.copy(
+                            selectedCustomer = customer,
+                            message = "فروشگاه ثبت شد.",
+                            saveCompleted = true
+                        )
+                    }
                 } else {
                     val updated = selected.copy(
                         name = valid.name,
@@ -80,13 +102,23 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                         updatedAt = now
                     )
                     if (repository.updateCustomer(updated) == 1) {
-                        _state.update { it.copy(selectedCustomer = updated, message = "اطلاعات فروشگاه به‌روزرسانی شد.") }
+                        _state.update {
+                            it.copy(
+                                selectedCustomer = updated,
+                                message = "اطلاعات فروشگاه به‌روزرسانی شد.",
+                                saveCompleted = true
+                            )
+                        }
                     } else {
-                        _state.update { it.copy(message = "رکورد فروشگاه پیدا نشد؛ فهرست را تازه‌سازی کنید.") }
+                        _state.update {
+                            it.copy(message = "رکورد فروشگاه پیدا نشد؛ فهرست را تازه‌سازی کنید.")
+                        }
                     }
                 }
             } catch (error: Exception) {
-                _state.update { it.copy(message = "ذخیره اطلاعات انجام نشد: ${error.message ?: "خطای نامشخص"}") }
+                _state.update {
+                    it.copy(message = "ذخیره اطلاعات انجام نشد: ${error.message ?: "خطای نامشخص"}")
+                }
             } finally {
                 _state.update { it.copy(isBusy = false) }
             }
@@ -102,12 +134,19 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
             )
             try {
                 if (repository.updateCustomer(updated) == 1) {
-                    _state.update { it.copy(selectedCustomer = updated, message = if (active) "فروشگاه دوباره فعال شد." else "فروشگاه غیرفعال شد.") }
+                    _state.update {
+                        it.copy(
+                            selectedCustomer = updated,
+                            message = if (active) "فروشگاه دوباره فعال شد." else "فروشگاه غیرفعال شد."
+                        )
+                    }
                 } else {
                     _state.update { it.copy(message = "تغییر وضعیت انجام نشد؛ رکورد پیدا نشد.") }
                 }
             } catch (error: Exception) {
-                _state.update { it.copy(message = "تغییر وضعیت انجام نشد: ${error.message ?: "خطای نامشخص"}") }
+                _state.update {
+                    it.copy(message = "تغییر وضعیت انجام نشد: ${error.message ?: "خطای نامشخص"}")
+                }
             }
         }
     }
