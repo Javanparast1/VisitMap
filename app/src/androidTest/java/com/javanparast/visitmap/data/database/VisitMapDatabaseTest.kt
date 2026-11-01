@@ -1,5 +1,6 @@
 package com.javanparast.visitmap.data.database
 
+import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -10,11 +11,9 @@ import com.javanparast.visitmap.data.model.LocationObservationEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import android.content.Context
 
 @RunWith(AndroidJUnit4::class)
 class VisitMapDatabaseTest {
@@ -92,7 +91,7 @@ class VisitMapDatabaseTest {
 
         assertEquals(newLocation, dao.getCurrentLocation(customer.customerId))
         assertEquals(2, dao.getLocationObservations(customer.customerId).size)
-        assertNotNull(dao.observeLocationHistory(customer.customerId))
+        assertEquals(listOf(history), dao.getLocationHistory(customer.customerId))
     }
 
     private fun sampleCustomer() = CustomerEntity(

@@ -41,6 +41,9 @@ interface VisitMapDao {
     @Query("SELECT * FROM location_history WHERE customerId = :customerId ORDER BY changedAt DESC")
     fun observeLocationHistory(customerId: String): Flow<List<LocationHistoryEntity>>
 
+    @Query("SELECT * FROM location_history WHERE customerId = :customerId ORDER BY changedAt DESC")
+    suspend fun getLocationHistory(customerId: String): List<LocationHistoryEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertCustomer(customer: CustomerEntity)
 
@@ -64,6 +67,7 @@ interface VisitMapDao {
     ) {
         require(customer.customerId == location.customerId)
         require(customer.customerId == observation.customerId)
+        require(observation.matches(location))
 
         insertCustomer(customer)
         upsertCurrentLocation(location)
@@ -78,9 +82,46 @@ interface VisitMapDao {
     ) {
         require(location.customerId == observation.customerId)
         require(location.customerId == history.customerId)
+        require(observation.matches(location))
+
+        val previous = getCurrentLocation(location.customerId)
+            ?: error("Cannot create location history without an existing current location.")
+
+        require(history.matchesPrevious(previous))
+        require(history.matchesNew(location))
 
         upsertCurrentLocation(location)
         insertLocationObservation(observation)
         insertLocationHistory(history)
     }
+
+    private fun LocationObservationEntity.matches(
+        location: CustomerLocationEntity
+    ): Boolean =
+        latitude == location.latitude &&
+            longitude == location.longitude &&
+            accuracyMeters == location.accuracyMeters &&
+            provider == location.provider &&
+            capturedAt == location.capturedAt &&
+            isManual == location.isManual
+
+    private fun LocationHistoryEntity.matchesPrevious(
+        location: CustomerLocationEntity
+    ): Boolean =
+        oldLatitude == location.latitude &&
+            oldLongitude == location.longitude &&
+            oldAccuracyMeters == location.accuracyMeters &&
+            oldProvider == location.provider &&
+            oldCapturedAt == location.capturedAt &&
+            oldIsManual == location.isManual
+
+    private fun LocationHistoryEntity.matchesNew(
+        location: CustomerLocationEntity
+    ): Boolean =
+        newLatitude == location.latitude &&
+            newLongitude == location.longitude &&
+            newAccuracyMeters == location.accuracyMeters &&
+            newProvider == location.provider &&
+            newCapturedAt == location.capturedAt &&
+            newIsManual == location.isManual
 }
