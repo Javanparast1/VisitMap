@@ -59,12 +59,22 @@ jobs:
           disable-animations: true
           script: gradle --no-daemon --no-parallel connectedDebugAndroidTest
 
+      - name: Verify Room schema export
+        run: |
+          echo "Room schema files:"
+          find app/schemas -type f -name '*.json' -print
+          schema_count=$(find app/schemas -type f -name '*.json' | wc -l)
+          if [ "$schema_count" -eq 0 ]; then
+            echo "::error::Room schema export is missing. Expected at least one JSON file under app/schemas/."
+            exit 1
+          fi
+
       - name: Upload debug APK and Room schema
         uses: actions/upload-artifact@v4
         with:
           name: visitmap-debug-apk
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            app/schemas/*.json
+            app/schemas/**/*.json
           if-no-files-found: error
           retention-days: 7
