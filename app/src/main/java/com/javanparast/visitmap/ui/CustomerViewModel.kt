@@ -10,6 +10,8 @@ import com.javanparast.visitmap.domain.CustomerValidationResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CustomerUiState(
@@ -23,37 +25,35 @@ data class CustomerUiState(
 class CustomerViewModel(private val repository: CustomerRepository) : ViewModel() {
     private val _state = MutableStateFlow(CustomerUiState())
     val state: StateFlow<CustomerUiState> = _state.asStateFlow()
+    private val query = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
-            repository.observeCustomers().collect { rows ->
-                _state.value = _state.value.copy(customers = rows)
-            }
+            query.flatMapLatest { text ->
+                if (text.isBlank()) repository.observeCustomers()
+                else repository.searchCustomers(text)
+            }.collect { rows -> _state.update { it.copy(customers = rows) } }
         }
     }
 
-    fun search(query: String) {
-        _state.value = _state.value.copy(query = query)
-        viewModelScope.launch {
-            repository.searchCustomers(query).collect { rows ->
-                _state.value = _state.value.copy(customers = rows)
-            }
-        }
+    fun search(value: String) {
+        _state.update { it.copy(query = value) }
+        query.value = value
     }
 
     fun select(customer: CustomerEntity?) {
-        _state.value = _state.value.copy(selectedCustomer = customer, message = null)
+        _state.update { it.copy(selectedCustomer = customer, message = null) }
     }
 
     fun save(input: CustomerInput) {
         val validation = CustomerValidation.validate(input)
         if (validation is CustomerValidationResult.Invalid) {
-            _state.value = _state.value.copy(message = validation.message)
+            _state.update { it.copy(message = validation.message) }
             return
         }
         val valid = (validation as CustomerValidationResult.Valid).input
         viewModelScope.launch {
-            _state.value = _state.value.copy(isBusy = true, message = null)
+            _state.update { it.copy(isBusy = true, message = null) }
             try {
                 val now = System.currentTimeMillis()
                 val selected = _state.value.selectedCustomer
@@ -69,7 +69,7 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                             updatedAt = now
                         )
                     )
-                    _state.value = _state.value.copy(message = "فروشگاه ثبت شد.")
+                    _state.update { it.copy(message = "فروشگاه ثبت شد.") }
                 } else {
                     val updated = selected.copy(
                         name = valid.name,
@@ -80,18 +80,15 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                         updatedAt = now
                     )
                     if (repository.updateCustomer(updated) == 1) {
-                        _state.value = _state.value.copy(
-                            selectedCustomer = updated,
-                            message = "اطلاعات فروشگاه به‌روزرسانی شد."
-                        )
+                        _state.update { it.copy(selectedCustomer = updated, message = "اطلاعات فروشگاه به‌روزرسانی شد.") }
                     } else {
-                        _state.value = _state.value.copy(message = "رکورد فروشگاه پیدا نشد؛ فهرست را تازه‌سازی کنید.")
+                        _state.update { it.copy(message = "رکورد فروشگاه پیدا نشد؛ فهرست را تازه‌سازی کنید.") }
                     }
                 }
             } catch (error: Exception) {
-                _state.value = _state.value.copy(message = "ذخیره اطلاعات انجام نشد: ${error.message ?: "خطای نامشخص"}")
+                _state.update { it.copy(message = "ذخیره اطلاعات انجام نشد: ${error.message ?: "خطای نامشخص"}") }
             } finally {
-                _state.value = _state.value.copy(isBusy = false)
+                _state.update { it.copy(isBusy = false) }
             }
         }
     }
@@ -105,20 +102,15 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
             )
             try {
                 if (repository.updateCustomer(updated) == 1) {
-                    _state.value = _state.value.copy(
-                        selectedCustomer = updated,
-                        message = if (active) "فروشگاه دوباره فعال شد." else "فروشگاه غیرفعال شد."
-                    )
+                    _state.update { it.copy(selectedCustomer = updated, message = if (active) "فروشگاه دوباره فعال شد." else "فروشگاه غیرفعال شد.") }
                 } else {
-                    _state.value = _state.value.copy(message = "تغییر وضعیت انجام نشد؛ رکورد پیدا نشد.")
+                    _state.update { it.copy(message = "تغییر وضعیت انجام نشد؛ رکورد پیدا نشد.") }
                 }
             } catch (error: Exception) {
-                _state.value = _state.value.copy(message = "تغییر وضعیت انجام نشد: ${error.message ?: "خطای نامشخص"}")
+                _state.update { it.copy(message = "تغییر وضعیت انجام نشد: ${error.message ?: "خطای نامشخص"}") }
             }
         }
     }
 
-    fun clearMessage() {
-        _state.value = _state.value.copy(message = null)
-    }
+    fun clearMessage() { _state.update { it.copy(message = null) } }
 }
