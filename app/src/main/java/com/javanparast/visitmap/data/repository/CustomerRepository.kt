@@ -42,6 +42,16 @@ class CustomerRepository(
         observation: LocationObservationEntity
     ) = dao.recordLocationObservation(observation)
 
+    suspend fun recordManualCorrection(
+        sourceObservationId: String,
+        manualProposal: LocationObservationEntity,
+        rejectedAt: Long
+    ): Int = dao.recordManualCorrection(
+        sourceObservationId = sourceObservationId,
+        manualProposal = manualProposal,
+        rejectedAt = rejectedAt
+    )
+
     suspend fun acceptLocationObservation(
         observationId: String,
         reviewedAt: Long,
