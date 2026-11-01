@@ -56,6 +56,19 @@ interface VisitMapDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLocationObservation(observation: LocationObservationEntity)
 
+    @Query(
+        """
+        UPDATE location_observations
+        SET reviewStatus = :reviewStatus, reviewedAt = :reviewedAt
+        WHERE observationId = :observationId
+        """
+    )
+    suspend fun updateObservationReview(
+        observationId: String,
+        reviewStatus: String,
+        reviewedAt: Long?
+    ): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLocationHistory(history: LocationHistoryEntity)
 

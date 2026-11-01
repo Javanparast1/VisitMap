@@ -45,6 +45,12 @@ class CustomerRepository(
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity> =
         dao.getLocationObservations(customerId)
 
+    suspend fun updateObservationReview(
+        observationId: String,
+        reviewStatus: String,
+        reviewedAt: Long?
+    ): Int = dao.updateObservationReview(observationId, reviewStatus, reviewedAt)
+
     fun observeLocationHistory(customerId: String): Flow<List<LocationHistoryEntity>> =
         dao.observeLocationHistory(customerId)
 }
