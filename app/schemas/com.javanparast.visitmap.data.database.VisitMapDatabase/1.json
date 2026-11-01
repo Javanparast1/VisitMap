@@ -1,0 +1,443 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "5899b2e23d091ab55e903574559da91d",
+    "entities": [
+      {
+        "tableName": "customers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`customerId` TEXT NOT NULL, `name` TEXT NOT NULL, `customerType` TEXT NOT NULL, `phone` TEXT, `contactName` TEXT, `status` TEXT NOT NULL, `description` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`customerId`))",
+        "fields": [
+          {
+            "fieldPath": "customerId",
+            "columnName": "customerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerType",
+            "columnName": "customerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contactName",
+            "columnName": "contactName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "customerId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_customers_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_customers_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_customers_customerType",
+            "unique": false,
+            "columnNames": [
+              "customerType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_customers_customerType` ON `${TABLE_NAME}` (`customerType`)"
+          },
+          {
+            "name": "index_customers_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_customers_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_customers_contactName",
+            "unique": false,
+            "columnNames": [
+              "contactName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_customers_contactName` ON `${TABLE_NAME}` (`contactName`)"
+          },
+          {
+            "name": "index_customers_phone",
+            "unique": false,
+            "columnNames": [
+              "phone"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_customers_phone` ON `${TABLE_NAME}` (`phone`)"
+          }
+        ]
+      },
+      {
+        "tableName": "customer_locations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`customerId` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `accuracyMeters` REAL, `provider` TEXT NOT NULL, `capturedAt` INTEGER NOT NULL, `isManual` INTEGER NOT NULL, `province` TEXT, `county` TEXT, `city` TEXT, `neighborhood` TEXT, PRIMARY KEY(`customerId`), FOREIGN KEY(`customerId`) REFERENCES `customers`(`customerId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "customerId",
+            "columnName": "customerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accuracyMeters",
+            "columnName": "accuracyMeters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capturedAt",
+            "columnName": "capturedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isManual",
+            "columnName": "isManual",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "province",
+            "columnName": "province",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "county",
+            "columnName": "county",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "neighborhood",
+            "columnName": "neighborhood",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "customerId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "customers",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "customerId"
+            ],
+            "referencedColumns": [
+              "customerId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "location_observations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`observationId` TEXT NOT NULL, `customerId` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `accuracyMeters` REAL, `provider` TEXT NOT NULL, `capturedAt` INTEGER NOT NULL, `isManual` INTEGER NOT NULL, `reviewStatus` TEXT NOT NULL, `reviewedAt` INTEGER, PRIMARY KEY(`observationId`), FOREIGN KEY(`customerId`) REFERENCES `customers`(`customerId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "observationId",
+            "columnName": "observationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerId",
+            "columnName": "customerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accuracyMeters",
+            "columnName": "accuracyMeters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capturedAt",
+            "columnName": "capturedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isManual",
+            "columnName": "isManual",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reviewStatus",
+            "columnName": "reviewStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reviewedAt",
+            "columnName": "reviewedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "observationId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_location_observations_customerId_capturedAt",
+            "unique": false,
+            "columnNames": [
+              "customerId",
+              "capturedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_location_observations_customerId_capturedAt` ON `${TABLE_NAME}` (`customerId`, `capturedAt`)"
+          },
+          {
+            "name": "index_location_observations_reviewStatus",
+            "unique": false,
+            "columnNames": [
+              "reviewStatus"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_location_observations_reviewStatus` ON `${TABLE_NAME}` (`reviewStatus`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "customers",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "customerId"
+            ],
+            "referencedColumns": [
+              "customerId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "location_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`historyId` TEXT NOT NULL, `customerId` TEXT NOT NULL, `oldLatitude` REAL NOT NULL, `oldLongitude` REAL NOT NULL, `newLatitude` REAL NOT NULL, `newLongitude` REAL NOT NULL, `oldAccuracyMeters` REAL, `newAccuracyMeters` REAL, `oldProvider` TEXT NOT NULL, `newProvider` TEXT NOT NULL, `oldCapturedAt` INTEGER NOT NULL, `newCapturedAt` INTEGER NOT NULL, `oldIsManual` INTEGER NOT NULL, `newIsManual` INTEGER NOT NULL, `changedAt` INTEGER NOT NULL, `reason` TEXT, PRIMARY KEY(`historyId`), FOREIGN KEY(`customerId`) REFERENCES `customers`(`customerId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "historyId",
+            "columnName": "historyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerId",
+            "columnName": "customerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldLatitude",
+            "columnName": "oldLatitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldLongitude",
+            "columnName": "oldLongitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newLatitude",
+            "columnName": "newLatitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newLongitude",
+            "columnName": "newLongitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldAccuracyMeters",
+            "columnName": "oldAccuracyMeters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "newAccuracyMeters",
+            "columnName": "newAccuracyMeters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "oldProvider",
+            "columnName": "oldProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newProvider",
+            "columnName": "newProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldCapturedAt",
+            "columnName": "oldCapturedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newCapturedAt",
+            "columnName": "newCapturedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldIsManual",
+            "columnName": "oldIsManual",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newIsManual",
+            "columnName": "newIsManual",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changedAt",
+            "columnName": "changedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "historyId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_location_history_customerId_changedAt",
+            "unique": false,
+            "columnNames": [
+              "customerId",
+              "changedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_location_history_customerId_changedAt` ON `${TABLE_NAME}` (`customerId`, `changedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "customers",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "customerId"
+            ],
+            "referencedColumns": [
+              "customerId"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5899b2e23d091ab55e903574559da91d')"
+    ]
+  }
+}
