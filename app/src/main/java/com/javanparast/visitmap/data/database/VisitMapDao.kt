@@ -51,6 +51,27 @@ interface VisitMapDao {
     @Update
     suspend fun updateCustomer(customer: CustomerEntity): Int
 
+    @Query("DELETE FROM customer_locations WHERE customerId = :customerId")
+    suspend fun deleteCurrentLocation(customerId: String): Int
+
+    @Query("DELETE FROM location_observations WHERE customerId = :customerId")
+    suspend fun deleteLocationObservations(customerId: String): Int
+
+    @Query("DELETE FROM location_history WHERE customerId = :customerId")
+    suspend fun deleteLocationHistory(customerId: String): Int
+
+    @Query("DELETE FROM customers WHERE customerId = :customerId")
+    suspend fun deleteCustomerRow(customerId: String): Int
+
+    @Transaction
+    suspend fun deleteCustomerPermanently(customerId: String): Int {
+        if (getCustomer(customerId) == null) return 0
+        deleteCurrentLocation(customerId)
+        deleteLocationObservations(customerId)
+        deleteLocationHistory(customerId)
+        return deleteCustomerRow(customerId)
+    }
+
     @Upsert
     suspend fun upsertCurrentLocation(location: CustomerLocationEntity)
 
