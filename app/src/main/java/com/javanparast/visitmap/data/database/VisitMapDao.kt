@@ -56,6 +56,9 @@ interface VisitMapDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLocationObservation(observation: LocationObservationEntity)
 
+    suspend fun recordLocationObservation(observation: LocationObservationEntity) =
+        insertLocationObservation(observation)
+
     @Query(
         """
         UPDATE location_observations
@@ -80,6 +83,7 @@ interface VisitMapDao {
     ) {
         require(customer.customerId == location.customerId)
         require(customer.customerId == observation.customerId)
+        require(observation.reviewStatus == LocationObservationEntity.REVIEW_ACCEPTED)
         require(observation.matches(location))
 
         insertCustomer(customer)
@@ -95,6 +99,7 @@ interface VisitMapDao {
     ) {
         require(location.customerId == observation.customerId)
         require(location.customerId == history.customerId)
+        require(observation.reviewStatus == LocationObservationEntity.REVIEW_ACCEPTED)
         require(observation.matches(location))
 
         val previous = getCurrentLocation(location.customerId)

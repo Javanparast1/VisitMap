@@ -45,6 +45,10 @@ class CustomerRepository(
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity> =
         dao.getLocationObservations(customerId)
 
+    suspend fun recordLocationObservation(
+        observation: LocationObservationEntity
+    ) = dao.recordLocationObservation(observation)
+
     suspend fun updateObservationReview(
         observationId: String,
         reviewStatus: String,

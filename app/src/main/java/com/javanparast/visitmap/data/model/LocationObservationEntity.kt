@@ -31,7 +31,7 @@ data class LocationObservationEntity(
     val provider: String,
     val capturedAt: Long,
     val isManual: Boolean,
-    val reviewStatus: String = REVIEW_ACCEPTED,
+    val reviewStatus: String = REVIEW_PENDING,
     val reviewedAt: Long? = null
 ) {
     companion object {
