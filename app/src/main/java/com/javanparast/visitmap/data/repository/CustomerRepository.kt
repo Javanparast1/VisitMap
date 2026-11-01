@@ -18,6 +18,7 @@ class CustomerRepository(private val dao: VisitMapDao) {
         dao.registerCustomer(customer, initialObservation)
 
     suspend fun updateCustomer(customer: CustomerEntity): Int = dao.updateCustomer(customer)
+    suspend fun deleteCustomerPermanently(customerId: String): Int = dao.deleteCustomerPermanently(customerId)
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity> =
         dao.getLocationObservations(customerId)
     suspend fun recordLocationObservation(observation: LocationObservationEntity) =
