@@ -54,6 +54,32 @@ class VisitMapDatabaseTest {
     }
 
     @Test
+    fun updateCustomerReturnsOneWhenCustomerExists() = runBlocking {
+        val customer = sampleCustomer()
+        dao.insertCustomer(customer)
+
+        val updatedCustomer = customer.copy(
+            name = "فروشگاه به‌روزشده",
+            updatedAt = 2_000L
+        )
+
+        assertEquals(1, dao.updateCustomer(updatedCustomer))
+        assertEquals(updatedCustomer, dao.getCustomer(customer.customerId))
+    }
+
+    @Test
+    fun updateCustomerReturnsZeroWhenCustomerDoesNotExist() = runBlocking {
+        val missingCustomer = sampleCustomer().copy(
+            customerId = "missing-customer",
+            name = "مشتری ناموجود",
+            updatedAt = 2_000L
+        )
+
+        assertEquals(0, dao.updateCustomer(missingCustomer))
+        assertNull(dao.getCustomer(missingCustomer.customerId))
+    }
+
+    @Test
     fun acceptingFirstProposalCreatesCurrentLocationWithoutHistory() = runBlocking {
         val customer = sampleCustomer()
         val location = sampleLocation(customer.customerId)
