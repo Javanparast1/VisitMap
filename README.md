@@ -1,12 +1,27 @@
 # VisitMap
 
-Offline-first Android customer mapping and visit planning.
+Offline-first Android app for recording and managing physical shops.
 
-## Project status
+## Implemented
 
-The Android bootstrap is in progress. This branch adds the first native Android application shell and a GitHub Actions workflow for validating and producing a debug APK.
+- Native Android application using Kotlin and Jetpack Compose (Persian RTL interface).
+- Local Room database with customer, current-location, location-observation, and location-history tables.
+- Customer registration without requiring a location.
+- Customer list and unified search by shop name, contact name, or phone.
+- Customer detail and editing while preserving the customer ID.
+- Deactivation/reactivation without physically deleting customer data.
+- Domain validation for required shop name and supported shop types.
+- Location proposals remain separate from the approved current location and require explicit acceptance.
 
-The initial screen is a Persian, right-to-left Compose screen. Customer records, MVVM feature flows, local database, location capture, and offline maps have **not** been implemented yet. These remain governed by the specifications in `docs/`.
+## Not yet implemented
+
+- GPS/location capture and manual map selection.
+- Offline map rendering and geospatial/geocoder features.
+- Duplicate-customer assessment.
+- Backup and restore.
+- Full field-pilot acceptance on the reference Redmi 12C device.
+
+These capabilities remain governed by the specifications in `docs/`. A successful build or emulator test is not evidence that the app has passed field acceptance.
 
 ## Build baseline
 
@@ -16,24 +31,19 @@ The initial screen is a Persian, right-to-left Compose screen. Customer records,
 - JDK: 17
 - Compile SDK: 36
 - Minimum SDK: 26
+- Target SDK: 35
 - Jetpack Compose BOM: 2026.06.01
-- Activity Compose: 1.13.0
-
-Compose BOM 2026.06.01 is pinned to the Compose 1.11.4 generation, which predates the API 37 requirement introduced in Compose 1.12. The first CI attempt exposed an obsolete Kotlin compiler configuration; the project now uses the typed `compilerOptions` DSL. The baseline remains subject to successful CI and device validation.
+- Room: 2.8.5
 
 Versions are centralized in `gradle/libs.versions.toml`.
 
-## Build with GitHub Actions
+## Build and test
 
-Pushes to `main` and `feat/**` branches, pull requests targeting `main`, and manual workflow dispatches run the **Android CI** workflow.
+CI runs JVM unit tests, Android lint, debug APK build, and Room instrumentation tests on an Android emulator. It uploads the debug APK and Room schema as a short-lived workflow artifact.
 
-The workflow runs unit-test, Android lint, and debug APK build tasks. On success, it uploads an artifact named `visitmap-debug-apk`, retained for 7 days.
+The workflow installs Gradle directly; a Gradle Wrapper is not included yet.
 
-The workflow installs Gradle directly on the runner; a Gradle Wrapper is not included yet.
-
-## Local build
-
-With JDK 17, Android SDK platform 36, Build Tools 36.0.0, and Gradle 8.13 installed:
+Local build requirements: JDK 17, Android SDK platform 36, Build Tools 36.0.0, and Gradle 8.13.
 
 ```bash
 gradle --no-daemon test lint assembleDebug
@@ -47,4 +57,6 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Privacy boundary
 
-The initial application requests no location or network permissions and does not collect or transmit customer data. Do not add real customer data to this public repository, CI logs, or workflow artifacts.
+Customer records are stored locally in the app's private database. The app does not request network or location permissions in this customer-operations stage. Do not add real customer data to this public repository, CI logs, or workflow artifacts.
+
+Android Auto Backup remains disabled. Explicit user-controlled backup/restore is not implemented yet.
