@@ -20,7 +20,9 @@ data class CustomerUiState(
     val selectedCustomer: CustomerEntity? = null,
     val message: String? = null,
     val isBusy: Boolean = false,
-    val saveCompleted: Boolean = false
+    val saveCompleted: Boolean = false,
+    val saveCommitted: Boolean = false,
+    val deleteCompleted: Boolean = false
 )
 
 class CustomerViewModel(private val repository: CustomerRepository) : ViewModel() {
@@ -43,14 +45,12 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
     }
 
     fun select(customer: CustomerEntity?) {
-        _state.update { it.copy(selectedCustomer = customer, message = null, saveCompleted = false) }
+        _state.update { it.copy(selectedCustomer = customer, message = null, saveCompleted = false, saveCommitted = false, deleteCompleted = false) }
     }
 
-    fun consumeSaveCompleted() {
-        _state.update { it.copy(saveCompleted = false) }
-    }
 
     fun save(input: CustomerInput) {
+        if (_state.value.saveCommitted) return
         val validation = CustomerValidation.validate(input)
         if (validation is CustomerValidationResult.Invalid) {
             _state.update { it.copy(message = validation.message) }
@@ -89,7 +89,8 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                         it.copy(
                             selectedCustomer = customer,
                             message = "فروشگاه ثبت شد.",
-                            saveCompleted = true
+                            saveCompleted = true,
+                            saveCommitted = true
                         )
                     }
                 } else {
@@ -106,7 +107,8 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                             it.copy(
                                 selectedCustomer = updated,
                                 message = "اطلاعات فروشگاه به‌روزرسانی شد.",
-                                saveCompleted = true
+                                saveCompleted = true,
+                                saveCommitted = true
                             )
                         }
                     } else {
@@ -119,6 +121,28 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
                 _state.update {
                     it.copy(message = "ذخیره اطلاعات انجام نشد: ${error.message ?: "خطای نامشخص"}")
                 }
+            } finally {
+                _state.update { it.copy(isBusy = false) }
+            }
+        }
+    }
+
+    fun deletePermanently() {
+        val selected = _state.value.selectedCustomer ?: return
+        while (true) {
+            val current = _state.value
+            if (current.isBusy) return
+            if (_state.compareAndSet(current, current.copy(isBusy = true, message = null))) break
+        }
+        viewModelScope.launch {
+            try {
+                if (repository.deleteCustomerPermanently(selected.customerId) == 1) {
+                    _state.update { it.copy(selectedCustomer = null, message = null, deleteCompleted = true) }
+                } else {
+                    _state.update { it.copy(message = "رکورد فروشگاه پیدا نشد؛ حذف انجام نشد.") }
+                }
+            } catch (error: Exception) {
+                _state.update { it.copy(message = "حذف انجام نشد: ${error.message ?: "خطای نامشخص"}") }
             } finally {
                 _state.update { it.copy(isBusy = false) }
             }
