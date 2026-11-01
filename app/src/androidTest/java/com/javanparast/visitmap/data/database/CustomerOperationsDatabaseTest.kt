@@ -5,7 +5,12 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.javanparast.visitmap.data.model.CustomerEntity
+import com.javanparast.visitmap.data.repository.CustomerRepository
+import com.javanparast.visitmap.domain.CustomerInput
+import com.javanparast.visitmap.ui.CustomerViewModel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -49,6 +54,27 @@ class CustomerOperationsDatabaseTest {
         assertEquals(listOf(customer), dao.observeCustomers().first())
         assertEquals(listOf(customer), dao.searchCustomers("مسئول آزمایشی").first())
         assertEquals(listOf(customer), dao.searchCustomers("09120000000").first())
+    }
+
+    @Test
+    fun repeatedSaveCallsDuringOneRegistrationCreateOnlyOneCustomer() = runBlocking {
+        val viewModel = CustomerViewModel(CustomerRepository(dao))
+        val input = CustomerInput(
+            name = "فروشگاه یکتا",
+            customerType = CustomerEntity.TYPE_SUPERMARKET,
+            phone = null,
+            contactName = null,
+            description = null
+        )
+
+        viewModel.save(input)
+        viewModel.save(input)
+
+        withTimeout(5_000L) {
+            viewModel.state.filter { !it.isBusy && it.saveCompleted }.first()
+        }
+        assertEquals(1, dao.observeCustomers().first().size)
+        assertEquals("فروشگاه یکتا", dao.observeCustomers().first().single().name)
     }
 
     @Test
