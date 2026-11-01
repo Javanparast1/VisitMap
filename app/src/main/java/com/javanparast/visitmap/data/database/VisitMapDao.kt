@@ -35,6 +35,9 @@ interface VisitMapDao {
     @Query("SELECT * FROM customer_locations WHERE customerId = :customerId LIMIT 1")
     suspend fun getCurrentLocation(customerId: String): CustomerLocationEntity?
 
+    @Query("SELECT * FROM location_observations WHERE observationId = :observationId LIMIT 1")
+    suspend fun getLocationObservation(observationId: String): LocationObservationEntity?
+
     @Query("SELECT * FROM location_observations WHERE customerId = :customerId ORDER BY capturedAt DESC")
     suspend fun getLocationObservations(customerId: String): List<LocationObservationEntity>
 
@@ -56,62 +59,108 @@ interface VisitMapDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLocationObservation(observation: LocationObservationEntity)
 
-    suspend fun recordLocationObservation(observation: LocationObservationEntity) =
-        insertLocationObservation(observation)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertLocationHistory(history: LocationHistoryEntity)
 
     @Query(
         """
         UPDATE location_observations
-        SET reviewStatus = :reviewStatus, reviewedAt = :reviewedAt
+        SET reviewStatus = 'ACCEPTED', reviewedAt = :reviewedAt
         WHERE observationId = :observationId
+          AND reviewStatus = 'PENDING'
+          AND reviewedAt IS NULL
         """
     )
-    suspend fun updateObservationReview(
-        observationId: String,
-        reviewStatus: String,
-        reviewedAt: Long?
-    ): Int
+    suspend fun markObservationAccepted(observationId: String, reviewedAt: Long): Int
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertLocationHistory(history: LocationHistoryEntity)
+    @Query(
+        """
+        UPDATE location_observations
+        SET reviewStatus = 'REJECTED', reviewedAt = :reviewedAt
+        WHERE observationId = :observationId
+          AND reviewStatus = 'PENDING'
+          AND reviewedAt IS NULL
+        """
+    )
+    suspend fun markObservationRejected(observationId: String, reviewedAt: Long): Int
 
+    /**
+     * A new customer is persisted independently from its location.
+     * Its first location remains a pending proposal until the user accepts it.
+     */
     @Transaction
     suspend fun registerCustomer(
         customer: CustomerEntity,
-        location: CustomerLocationEntity,
-        observation: LocationObservationEntity
+        initialObservation: LocationObservationEntity
     ) {
-        require(customer.customerId == location.customerId)
-        require(customer.customerId == observation.customerId)
-        require(observation.reviewStatus == LocationObservationEntity.REVIEW_ACCEPTED)
-        require(observation.matches(location))
+        require(customer.customerId == initialObservation.customerId)
+        require(initialObservation.reviewStatus == LocationObservationEntity.REVIEW_PENDING)
+        require(initialObservation.reviewedAt == null)
 
         insertCustomer(customer)
-        upsertCurrentLocation(location)
+        insertLocationObservation(initialObservation)
+    }
+
+    /**
+     * Stores one pending location proposal for an existing customer.
+     * The current approved location is not changed by recording a proposal.
+     */
+    suspend fun recordLocationObservation(observation: LocationObservationEntity) {
+        require(observation.reviewStatus == LocationObservationEntity.REVIEW_PENDING)
+        require(observation.reviewedAt == null)
         insertLocationObservation(observation)
     }
 
+    /**
+     * Accepts an already-persisted proposal and promotes it to the current location.
+     * The first accepted location has no history row; replacements must append history.
+     */
     @Transaction
-    suspend fun updateCurrentLocation(
-        location: CustomerLocationEntity,
-        observation: LocationObservationEntity,
-        history: LocationHistoryEntity
-    ) {
-        require(location.customerId == observation.customerId)
-        require(location.customerId == history.customerId)
-        require(observation.reviewStatus == LocationObservationEntity.REVIEW_ACCEPTED)
-        require(observation.matches(location))
+    suspend fun acceptLocationObservation(
+        observationId: String,
+        reviewedAt: Long,
+        acceptedLocation: CustomerLocationEntity,
+        history: LocationHistoryEntity? = null
+    ): Int {
+        val observation = getLocationObservation(observationId) ?: return 0
+        if (
+            observation.reviewStatus != LocationObservationEntity.REVIEW_PENDING ||
+            observation.reviewedAt != null
+        ) {
+            return 0
+        }
 
-        val previous = getCurrentLocation(location.customerId)
-            ?: error("Cannot create location history without an existing current location.")
+        require(observation.customerId == acceptedLocation.customerId)
+        require(observation.matches(acceptedLocation))
 
-        require(history.matchesPrevious(previous))
-        require(history.matchesNew(location))
+        val previous = getCurrentLocation(observation.customerId)
+        if (previous == null) {
+            require(history == null)
+        } else {
+            require(history != null)
+            require(history.customerId == observation.customerId)
+            require(history.matchesPrevious(previous))
+            require(history.matchesNew(acceptedLocation))
+        }
 
-        upsertCurrentLocation(location)
-        insertLocationObservation(observation)
-        insertLocationHistory(history)
+        val updated = markObservationAccepted(observationId, reviewedAt)
+        if (updated != 1) return 0
+
+        upsertCurrentLocation(acceptedLocation)
+        if (history != null) {
+            insertLocationHistory(history)
+        }
+        return 1
     }
+
+    /**
+     * Rejects a pending proposal without changing the current approved location.
+     * Accepted and rejected observations are terminal.
+     */
+    suspend fun rejectLocationObservation(
+        observationId: String,
+        reviewedAt: Long
+    ): Int = markObservationRejected(observationId, reviewedAt)
 
     private fun LocationObservationEntity.matches(
         location: CustomerLocationEntity
