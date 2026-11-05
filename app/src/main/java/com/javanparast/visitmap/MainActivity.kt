@@ -45,6 +45,7 @@ import com.javanparast.visitmap.data.model.CustomerEntity
 import com.javanparast.visitmap.data.repository.CustomerRepository
 import com.javanparast.visitmap.domain.CustomerInput
 import com.javanparast.visitmap.ui.CustomerViewModel
+import com.javanparast.visitmap.ui.MapPickerScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
