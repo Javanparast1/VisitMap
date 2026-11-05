@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Screen { LIST, FORM, DETAIL }
+private enum class Screen { LIST, FORM, DETAIL, MAP }
 
 @Composable
 private fun VisitMapApp(viewModel: CustomerViewModel) {
@@ -104,6 +104,16 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
                                 // Successful saves navigate to the saved customer's detail screen.
                             }
                         )
+                        Screen.MAP -> state.selectedCustomer?.let { customer ->
+                            MapPickerScreen(
+                                customer = customer,
+                                onBack = { screen = Screen.DETAIL },
+                                onSubmitProposal = { latitude, longitude ->
+                                    viewModel.addManualLocationProposal(customer.customerId, latitude, longitude)
+                                    screen = Screen.DETAIL
+                                }
+                            )
+                        } ?: run { screen = Screen.LIST }
                         Screen.DETAIL -> state.selectedCustomer?.let { customer ->
                             CustomerDetail(
                                 customer = customer,
@@ -112,6 +122,7 @@ private fun VisitMapApp(viewModel: CustomerViewModel) {
                                 onDelete = viewModel::deletePermanently,
                                 onBack = { viewModel.select(null); screen = Screen.LIST },
                                 onEdit = { viewModel.select(customer); screen = Screen.FORM },
+                                onOpenMap = { screen = Screen.MAP },
                                 onToggleActive = { viewModel.setActive(it) }
                             )
                         } ?: run { screen = Screen.LIST }
@@ -209,6 +220,7 @@ private fun CustomerDetail(
     onDelete: () -> Unit,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onOpenMap: () -> Unit,
     onToggleActive: (Boolean) -> Unit
 ){
     var confirmDelete by remember(customer.customerId) { mutableStateOf(false) }
@@ -233,6 +245,7 @@ private fun CustomerDetail(
     Spacer(Modifier.height(12.dp))
     message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
     Button(enabled = !busy, onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("ویرایش اطلاعات") }
+    OutlinedButton(enabled = !busy, onClick = onOpenMap, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مکان روی نقشه") }
     OutlinedButton(
         enabled = !busy,
         onClick = { onToggleActive(customer.status != CustomerEntity.STATUS_ACTIVE) },
