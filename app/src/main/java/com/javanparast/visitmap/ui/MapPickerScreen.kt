@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.javanparast.visitmap.data.model.CustomerEntity
+import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
@@ -39,6 +40,7 @@ fun MapPickerScreen(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var selectedPoint by remember { mutableStateOf<LatLng?>(null) }
     val mapView = remember {
+        MapLibre.getInstance(context)
         MapView(context).apply {
             onCreate(null)
             getMapAsync { map ->
@@ -78,7 +80,7 @@ fun MapPickerScreen(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("انتخاب مکان برای: \${customer.name}", style = MaterialTheme.typography.titleMedium)
+        Text("انتخاب مکان برای: ${customer.name}", style = MaterialTheme.typography.titleMedium)
         Text("روی نقشه نقطه‌ی فروشگاه را لمس کنید. این انتخاب فقط پیشنهاد است و مکان تأییدشده را تغییر نمی‌دهد.")
         AndroidView(factory = { mapView }, modifier = Modifier.weight(1f).fillMaxWidth())
         selectedPoint?.let {
