@@ -26,6 +26,8 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Marker
+import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.maps.Style
 
 private const val GILAN_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
@@ -39,6 +41,7 @@ fun MapPickerScreen(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var selectedPoint by remember { mutableStateOf<LatLng?>(null) }
+    var selectedMarker by remember { mutableStateOf<Marker?>(null) }
     val mapStatusState = remember { mutableStateOf("در حال اتصال به سرویس نقشه…") }
     val mapView = remember {
         MapLibre.getInstance(context)
@@ -61,6 +64,13 @@ fun MapPickerScreen(
                 map.setStyle(Style.Builder().fromUri(GILAN_STYLE_URL)) {
                     mapStatusState.value = "نقشه بارگذاری شد."
                     map.addOnMapClickListener { point ->
+                        // Keep exactly one marker: every new tap replaces the previous selection.
+                        selectedMarker?.remove()
+                        selectedMarker = map.addMarker(
+                            MarkerOptions()
+                                .position(point)
+                                .title("مکان پیشنهادی فروشگاه")
+                        )
                         selectedPoint = point
                         true
                     }
