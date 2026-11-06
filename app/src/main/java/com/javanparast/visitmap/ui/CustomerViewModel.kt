@@ -175,5 +175,37 @@ class CustomerViewModel(private val repository: CustomerRepository) : ViewModel(
         }
     }
 
+
+    fun addManualLocationProposal(customerId: String, latitude: Double, longitude: Double) {
+        if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return
+        if (_state.value.isBusy) return
+        _state.update { it.copy(isBusy = true, message = null) }
+        viewModelScope.launch {
+            try {
+                val customer = repository.getCustomer(customerId)
+                if (customer == null) {
+                    _state.update { it.copy(message = "فروشگاه پیدا نشد؛ پیشنهاد ثبت نشد.") }
+                } else {
+                    repository.recordLocationObservation(
+                        com.javanparast.visitmap.data.model.LocationObservationEntity(
+                            customerId = customerId,
+                            latitude = latitude,
+                            longitude = longitude,
+                            accuracyMeters = null,
+                            provider = com.javanparast.visitmap.data.model.CustomerLocationEntity.PROVIDER_MANUAL,
+                            capturedAt = System.currentTimeMillis(),
+                            isManual = true
+                        )
+                    )
+                    _state.update { it.copy(message = "پیشنهاد مکان ثبت شد؛ برای تغییر مکان معتبر باید جداگانه تأیید شود.") }
+                }
+            } catch (error: Exception) {
+                _state.update { it.copy(message = "ثبت پیشنهاد انجام نشد: " + (error.message ?: "خطای نامشخص")) }
+            } finally {
+                _state.update { it.copy(isBusy = false) }
+            }
+        }
+    }
+
     fun clearMessage() { _state.update { it.copy(message = null) } }
 }
