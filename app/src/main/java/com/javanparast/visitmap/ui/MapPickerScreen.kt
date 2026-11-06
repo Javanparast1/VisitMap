@@ -39,16 +39,27 @@ fun MapPickerScreen(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var selectedPoint by remember { mutableStateOf<LatLng?>(null) }
+    val mapStatusState = remember { mutableStateOf("در حال اتصال به سرویس نقشه…") }
     val mapView = remember {
         MapLibre.getInstance(context)
         MapView(context).apply {
             onCreate(null)
+
+            // Register diagnostics before requesting the style so early failures are visible.
+            addOnDidFailLoadingMapListener { errorMessage ->
+                mapStatusState.value = "خطا در بارگذاری نقشه: ${errorMessage.take(240)}"
+            }
+            addOnDidFinishLoadingStyleListener {
+                mapStatusState.value = "نقشه بارگذاری شد."
+            }
+
             getMapAsync { map ->
                 map.cameraPosition = CameraPosition.Builder()
                     .target(LatLng(37.2808, 49.5832))
                     .zoom(11.0)
                     .build()
                 map.setStyle(Style.Builder().fromUri(GILAN_STYLE_URL)) {
+                    mapStatusState.value = "نقشه بارگذاری شد."
                     map.addOnMapClickListener { point ->
                         selectedPoint = point
                         true
@@ -65,10 +76,10 @@ fun MapPickerScreen(
                 Lifecycle.Event.ON_RESUME -> mapView.onResume()
                 Lifecycle.Event.ON_PAUSE -> mapView.onPause()
                 Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
                 else -> Unit
             }
         }
+        // Lifecycle.addObserver synchronizes the observer with the lifecycle's current state.
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
@@ -82,6 +93,7 @@ fun MapPickerScreen(
     ) {
         Text("انتخاب مکان برای: ${customer.name}", style = MaterialTheme.typography.titleMedium)
         Text("روی نقشه نقطه‌ی فروشگاه را لمس کنید. این انتخاب فقط پیشنهاد است و مکان تأییدشده را تغییر نمی‌دهد.")
+        Text(mapStatusState.value, style = MaterialTheme.typography.bodySmall)
         AndroidView(factory = { mapView }, modifier = Modifier.weight(1f).fillMaxWidth())
         selectedPoint?.let {
             Text("نقطه انتخاب‌شده: %.6f ، %.6f".format(it.latitude, it.longitude))
